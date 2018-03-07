@@ -48,11 +48,18 @@ public class MorseDecoder {
         /*
          * We should check the results of getNumFrames to ensure that they are safe to cast to int.
          */
+        int count = 0;
         int totalBinCount = (int) Math.ceil(inputFile.getNumFrames() / BIN_SIZE);
         double[] returnBuffer = new double[totalBinCount];
 
         double[] sampleBuffer = new double[BIN_SIZE * inputFile.getNumChannels()];
         for (int binIndex = 0; binIndex < totalBinCount; binIndex++) {
+            int framesRead = inputFile.readFrames(sampleBuffer, BIN_SIZE);
+            returnBuffer[binIndex] = 0;
+            for (int i = 0; i < sampleBuffer.length; i++) {
+                returnBuffer[binIndex] += Math.abs(sampleBuffer[i]);
+                count++;
+            }
             // Get the right number of samples from the inputFile
             // Sum all the samples together and store them in the returnBuffer
         }
@@ -86,8 +93,34 @@ public class MorseDecoder {
         // else if ispower and not waspower
         // else if issilence and wassilence
         // else if issilence and not wassilence
-
-        return "";
+        int powerPeriod = 0;
+        int silencePeriod = 0;
+        String output = "";
+        for (int i = 0; i < powerMeasurements.length - 1; i++) {
+            if (powerMeasurements[i] > POWER_THRESHOLD) {
+                powerPeriod++;
+            } else {
+                silencePeriod++;
+            }
+            if ((powerMeasurements[i + 1] > POWER_THRESHOLD && powerMeasurements[i] <= POWER_THRESHOLD) || (powerMeasurements[i + 1] <= POWER_THRESHOLD && powerMeasurements[i] > POWER_THRESHOLD)) {
+                if (powerMeasurements[i + 1] <= POWER_THRESHOLD) {
+                    if (powerPeriod > DASH_BIN_COUNT) {
+                        output += "-";
+                    } else {
+                        output += ".";
+                    }
+                    powerPeriod = 0;
+                    silencePeriod = 0;
+                } else {
+                    if (silencePeriod > DASH_BIN_COUNT) {
+                        output += " ";
+                    }
+                    silencePeriod = 0;
+                    powerPeriod = 0;
+                }
+            }
+        }
+        return output;
     }
 
     /**
